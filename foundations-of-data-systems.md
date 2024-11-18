@@ -58,7 +58,6 @@
 - FINISH GRAPH DB SECTION
 
 # Chapter 3: Storage and Retrieval
-## Data Structures That Power Your Database
 - The physical data model for databases concerns how data is stored on disk and how indexes are managed (on-disk or in-memory depending on implementation)
 - Logs are append-only data structures containing a sequence of records, but reading is O(N) due to linear scan
 - Using indexes can speed up reads at the cost of write speed
@@ -105,8 +104,6 @@
     2. Cluster means values are stored directly within the index
 - Concatenated indexes create a tuple as a key based on multiple column values, and they can either be cluster or non-cluster
     1. If (A, B), queries or joins using A or A, B are effective but not B itself due to no inherent primary ordering on B 
-
-## Transaction Processing or Analytics?
 - OLTP stands for online transaction processing and is the typical access pattern for general user applications
 - OLAP stands for online analytic processing and is the typical access pattern for analytics such as statistical aggregation for reports and business intelligence
 - ![Alt text](assets/oltpolap.png)
@@ -122,7 +119,6 @@
     1. READ UP ABOUT VIEWS AND MATERIALIZED VIEWS
 
 # Chapter 4: Encoding and Evolution
-## Formats for Encoding Data
 - Backward compatibility means newer code can read data that was written by older code (easier to achieve by keeping old code around); forward compatability means older code can read data written by newer code ( harder to achieve)
     1. Relationship between one process that serializes and another that deserializes
 - Data is either kept in-memory using data structures such as objects, structs, lists, and etc or encoded as a sequence of bytes in a format, JSON for example, if sent over network or written to disk
@@ -146,7 +142,6 @@
     2. Forward compatability means new writer schema and old reader schema; backward compatability means new reader schema and old writer schema
     3. The lack of field IDs make Avro efficient for representing database schema changes and dynamically generated schemas
 - Most relational databases have a network protocol that possesses their own native, proprietary binary encoding format and scheme
-## Modes of Dataflow
 - Whenever data needs to be shared with a separate process, which doesn't share memory (only threads do), data serialization and deserialization is needed, regardless of over network or over disk
 - For databases, if the database schema is updated, the change needs to be handled in application code in order to gaurantee forwards and backwards compatability
     1. Old data will stay in the database until a request comes in with updated application logic, which will rewrite the stale data new data
@@ -162,11 +157,4 @@
     2. It allows one message to be sent to several consumers
     3. Decouples the sender from the recipient
     4. Brokers can manage multiple queues/topics and can support pub/sub or point-to-point and other additional features; message queues are just simple queue-like structures
-- Message-passing is one-way in taht a sender doesn't normally expect a reply to its messages
-
-
-
-
-
-- Questions: Read up on a SQL indexing guide so we can understand the relationships between B-tree, pages, heap files, cluster (ordered), noncluster (nonordered), and all other intricacies. 
-- Many-to-many, many-to-one, one-to-many are clear normaliation candidates. One-to-one must be normalized IF entity A has entity B, and entity B carries additiona columns with it
+- Message-passing is one-way in that a sender doesn't normally expect a reply to its messages
