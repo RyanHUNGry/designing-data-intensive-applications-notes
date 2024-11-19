@@ -8,19 +8,19 @@
 - Scalabiliy measures how easy it is to scale a system when traffic increases dramatically
     1. Load is measured through load parameters such as read/write ratio on a database, number of requests per second on a web server, number of hits on a cache, and etc
     2. Twitter needed to handle read and write load from getting and posting tweets with respect to followers
-        - Twitter's first method was to store tweets, users, and follower (many-to-many table) as relational tables linked by foreign keys, which meant read performance suffered due to many joins while write performance was solid due to a single write destination
-        - However, Twitter's get tweet rate was 2x greater in magnitude (100x) than their post tweet rate, so they leveraged a cache for each individual user and home timeline feeds for each user; this reduced read speed but decreased write speed due to writes in multiple destinations
-        - Some celebrities are followed by millions, so updating the cache for each of these users is impossibly slow, and so Twitter uses a combination of both methods, reserving SQL joins for users with large followings
+        - i. Twitter's first method was to store tweets, users, and follower (many-to-many table) as relational tables linked by foreign keys, which meant read performance suffered due to many joins while write performance was solid due to a single write destination
+        - ii. However, Twitter's get tweet rate was 2x greater in magnitude (100x) than their post tweet rate, so they leveraged a cache for each individual user and home timeline feeds for each user; this reduced read speed but decreased write speed due to writes in multiple destinations
+        - iii. Some celebrities are followed by millions, so updating the cache for each of these users is impossibly slow, and so Twitter uses a combination of both methods, reserving SQL joins for users with large followings
     3. After load parameters are established, measure performance when load is increased using measures such as CPU usage, response time, memory usage, and etc.
-        - A common performance metric is median response time, as the median represents the 50th percentile
-        - The xth percentile states that x% of response times occur in < xth percentile and 100 - x% occur in > xth percentile
-        - Amazon measures on the 99.9th percentile (tail latency), which means that it accounts for the 99.9% response time in a sorted list and ensures even the 99.9th percentile is under a certain SLA to satisfy large customer orders
-        - Amazon did not go to 99.99th percentile, because the cost of maintaining this would far outweigh the benefits
+        - i. A common performance metric is median response time, as the median represents the 50th percentile
+        - ii. The xth percentile states that x% of response times occur in < xth percentile and 100 - x% occur in > xth percentile
+        - iii. Amazon measures on the 99.9th percentile (tail latency), which means that it accounts for the 99.9% response time in a sorted list and ensures even the 99.9th percentile is under a certain SLA to satisfy large customer orders
+        - iv. Amazon did not go to 99.99th percentile, because the cost of maintaining this would far outweigh the benefits
 - Maintainability measures how easy it is to fix bugs, upkeep performance, add features, and etc
     1. It consists of operability, simplicity, and evolvability
     2. Operability measures how easy it is to keep system running smoothly, and can be enhanced using monitoring, high visibility, self-healing, and etc
     3. Simplicity measures the lack of unnecessary complexity of a system, and can be improved using proper abstractions
-        - A trivial example is using C++ as an abstraction of assembly to write a server process
+        - i. A trivial example is using C++ as an abstraction of assembly to write a server process
     4. Evolvability measures agility on a data system
 
 # Chapter 2: Data Models
@@ -36,9 +36,9 @@
     3. The relationships above are one-to-many, or one-to-one, which implies a tree structure a JSON logical model can easily handle
     4. The JSON logical model offers better locality because no joins are needed to retrieve data
     5. The region_id and industry_id are stored as IDs and referenced by a foreign key in another table even though they have one-to-one relationship and could be stored as text; this is an edge case where the resume should have standardized lists of regions and industries
-        - Offers ease of updating
-        - Offers better search because the region table can encode additional information such as the state the region is in
-        - This is a deliberate removal of duplication choice (normalization), where human-meaningful information is not duplicated and only the ID is
+        - i. Offers ease of updating
+        - ii. Offers better search because the region table can encode additional information such as the state the region is in
+        - iii. This is a deliberate removal of duplication choice (normalization), where human-meaningful information is not duplicated and only the ID is
 - However, once many-to-one or many-to-many relationships exist, a join is required regardless of the logical data model, so relational data model is better suited as it supports normalization and joins
     1. In NoSQL, data is either duplicated (denormalized) or joined in application code using references for many-to-one or many-to-many relationships
 - Without considering concurrency handling, scalability, and fault-tolerance, choosing between document and relational databases comes down to the underlying logical data model
@@ -76,11 +76,11 @@
     3. Reading requires only storing a handful of keys in hashmap index (one key per few kilobytes of data in a segment file), and traversing from the largest key <= target key and up to smallest key > target key; this greatly reduces memory usage of index
     4. Writing requires using a balanced BST such as red-black or AVL trees (memtable), and persisting the ordered data on disk when tree becomes too large, and finally resetting the memtable for further writes
     5. Using SSTables can form a simple database system
-        a. Initialize database process, which maintains a balanced BST and hashmap index
-        b. Upon write request, write to balanced BST but if tree exceeds size threshold, create a new segment file with ordered data and reset tree; also update index
-        c. Upon read request, check if key is in tree, then in the most recent segment using index, then in the next most recent segment, and etc
-        d. Periodically run a compaction process to combine segment files, delete obsolete files, and remove deleted keys
-        e. Memtable and hashmap index are ephemeral, so use redundancy by storing their contents on disk for restoration
+        - i. Initialize database process, which maintains a balanced BST and hashmap index
+        - ii. Upon write request, write to balanced BST but if tree exceeds size threshold, create a new segment file with ordered data and reset tree; also update index
+        - iii. Upon read request, check if key is in tree, then in the most recent segment using index, then in the next most recent segment, and etc
+        - iv. Periodically run a compaction process to combine segment files, delete obsolete files, and remove deleted keys
+        - v. Memtable and hashmap index are ephemeral, so use redundancy by storing their contents on disk for restoration
 - The pattern of maintaining and compacting SSTables for data persistence is called an LSM-tree
 - B-trees are the on-disk indexes and pages are the on-disk data storage mechanism for relational databases
     1. B-trees break database into fix-sized pages, which are on-disk blocks of data containing keys, pointers to other pages, or values
@@ -114,12 +114,12 @@
 - The schema for OLAP is usually "star schema" where records such as events are the primary table, and information is referenced in fact tables (one-to-one relationship); "snowflake schema" is just more granular fact tables broken down into further one-to-one tables
 - OLAP data warehouses are column-oriented in terms of physical data model to make analytical queries efficient because they typically need to process entire columns rather than fetch every single row
     1. Cassandra has the idea of column families but this is a separate notion from column-oriented; it is still mostly row-oriented
-    2. This makes entire column reads extremely fast, but slows down writes because each column file is
+    2. This makes entire column reads extremely fast, but slows down writes because multiple column files need to be modified when a row is added
 - A materialized view is a table-like object whose contents are the results of some query, acting as a cache for aggregates such as COUNT, SUM, AVG, and etc
     1. READ UP ABOUT VIEWS AND MATERIALIZED VIEWS
 
 # Chapter 4: Encoding and Evolution
-- Backward compatibility means newer code can read data that was written by older code (easier to achieve by keeping old code around); forward compatability means older code can read data written by newer code ( harder to achieve)
+- Backward compatibility means newer code can read data that was written by older code (easier to achieve by keeping old code around); forward compatibility means older code can read data written by newer code ( harder to achieve)
     1. Relationship between one process that serializes and another that deserializes
 - Data is either kept in-memory using data structures such as objects, structs, lists, and etc or encoded as a sequence of bytes in a format, JSON for example, if sent over network or written to disk
 - Translation from native programming language's in-memory representation to a transmittable or persistable byte sequence is called encoding, serialization, or marshaling and the opposite is called decoding, parsing, deserialization, and unmarshalling
@@ -135,21 +135,21 @@
     1. Define a schema
     2. Use code generation tool to create classes that perform serialization and deserialization from and into native programming language structures
     3. The tag numbers allow for field identification during encoding/decoding
-        a. This allows Thrift and protobuf to maintain forward compatability if new field tags are added because they are just ignored by older encoders/decoders
-        b. Backwards compatability is easy as well because original field tags are still there for newer code to process; however new fields can never be required anymore because old formats do not have that field and a runtime error will be thrown
+        - i. This allows Thrift and protobuf to maintain forward compatibility if new field tags are added because they are just ignored by older encoders/decoders
+        - ii. Backwards compatibility is easy as well because original field tags are still there for newer code to process; however new fields can never be required anymore because old formats do not have that field and a runtime error will be thrown
 - Avro is another binary serialization but type information is not included in the binary encoding, so to decode, the exact same schema that encoding uses is also used to decode
     1. As such, Avro uses the writer schema and the reader schema to determine how to handle changes
-    2. Forward compatability means new writer schema and old reader schema; backward compatability means new reader schema and old writer schema
+    2. Forward compatibility means new writer schema and old reader schema; backward compatibility means new reader schema and old writer schema
     3. The lack of field IDs make Avro efficient for representing database schema changes and dynamically generated schemas
 - Most relational databases have a network protocol that possesses their own native, proprietary binary encoding format and scheme
 - Whenever data needs to be shared with a separate process, which doesn't share memory (only threads do), data serialization and deserialization is needed, regardless of over network or over disk
-- For databases, if the database schema is updated, the change needs to be handled in application code in order to gaurantee forwards and backwards compatability
+- For databases, if the database schema is updated, the change needs to be handled in application code in order to gaurantee forwards and backwards compatibility
     1. Old data will stay in the database until a request comes in with updated application logic, which will rewrite the stale data new data
 - In microservice architecture, old and new versions of services should still be compatible in terms of the data they exchange
 - When passing data through networks, the method differs based on the encoding used
     1. For instance, gRPC uses protobuf
     2. RESTful APIs typically use JSON over HTTP
-        a. REST does not mean JSON nor does it mean HTTP, but it is most commonly implemented using them
+        - i. REST does not mean JSON nor does it mean HTTP, but it is most commonly implemented using them
     3. RPCs abstract away the underlying network protocol, whereas REST doesn't, and this transparency can help with debugging
 - Asynchronous message-passing systems are somewhere between RPC and databses, and is powered by a message broker
 - Message brokers offer several advantages over direct RPC/REST
