@@ -11,14 +11,14 @@
     1. The mapper is called once for every input record, and its job is to extract a key-value pair
     2. The reducer takes the values shared by same key, and iterates over them to produce a value
     3. Between the mapper and reducer is an implicit step that sorts keys from the mapper before sending to reducer
-        i. The sorting allows easy grouping of data to pass to reducer
+        - i. The sorting allows easy grouping of data to pass to reducer
 - MapReduce systems provide APIs to implement MapReduce logic in conventional programming languages
 - Hadoop MapReduce has a multi-step distributed execution flow
     1. A Hadoop MapReduce job takes in a file directory, and partitions each file or file block as its own map task to be executed on separate nodes
     2. The map tasks are typically ran on the same node that has the replicated file or file block to be processed, given there is enough RAM and CPU to fit data
     3. Application code for mapping and reducing is not on the actual Hadoop system, so the framework copies the code to the appropriate machines
     4. The output of the mapper are key-value pairs, and they are partitioned based on hash of key and written to sorted file on the mapper's local disk
-        i. This means for each key per map task, there exists a sorted file on that mapper's disk per key 
+        - i. This means for each key per map task, there exists a sorted file on that mapper's disk per key 
     5. Reducers connect to each of the mappers and download the files of partitioned, sorted key-value pairs
     6. The reducers then take the files from the mappers, which are grouped by key, and merges them together, preserving sort order
     7. The reducer is called with a key and an iterator that incrementally scans over records with the same key, and generate an output file on HDFS per reducer task with replicas on other nodes
@@ -43,10 +43,10 @@
 - MapReduce was originally designed for making search indexes, where documents are processed and index files are generated via MapReduce jobs, allowing full-text search over a set of documents
 - MapReduce outputs can be loaded into a database by using key-value stores such as Voldemort within the MapReduce job itself, and then copying the immutable output files to the database after the job is finished
 - Hadoop MapReduce share similarities and differences with distributed databases
-    1. Hadoop MapReduce provides a general "operating system" (or framework) that can run arbitrary programs whereas MPP databases focus on parallel SQL query execution for analytics
+    1. Hadoop MapReduce provides a general "operating system" (or framework) that can run arbitrary programs with custom application code whereas MPP databases focus on parallel SQL query execution for analytics
     2. Databases requires data to adhere to schemas, whereas files in HDFS are just byte sequences and can be any data model or encoding
-        i. The mapper is what cleans this data up into a standardized form
-    3. Hadoop is commonly used for ETL processes
+        - i. The mapper is what cleans this data up into a standardized form
+    3. Hadoop is commonly used for ETL processes, because it take take a variety of data sources and load them into a specific, standardized form
     4. MPP databases only support query, so task-specific logic such as building search indexes or building machine learning systems cannot be expressed with SQL and must be coded up using MapReduce
     5. MapReduce tolerates faults by rerunning a map or reduce task at the granularity of an individual task
 - MapReduce is simple to understand, but difficult to use because common functionality such as joins need to be implemented manually
@@ -96,6 +96,86 @@
     3. In a sense, the database is a producer of events (data changes), and auxilliary systems such as search indexes are consumers of those events
     4. Examples of CDC exposing a database's log include Mongoriver, Debezium, and Bottled Water for MongoDB, MySQL, and PostgreSQL respectively
     5. Other databases are starting to support change streams as a first-class interface
-- Event sourcing
+- A mutable state is the accumulation of an append-only log of immutable events
+    1. As such, any durable changelog can make any state reproducible on any system because the log is the single source of truth
+    2. It also allows for auditability since events are never removed but overwritten by newer events
+    3. However, an immutable log may grow prohibitively large, and the performance of compaction and garbage collection becomes crucial for operational robustness
+- Processing streams consist of one or more processing input/output stages before arriving at a final output
+    1. It is similar to Unix processes and MapReduce jobs, but the input and output are live streams that don't have a fixed size
+    2. Complex event processing (CEP) is an approach that allows users to use a high-level declarative langauge like SQL or GUI to describe patterns of events; as data is streamed into the system, it will try to match it with the stored queries for pattern detection
+    3. Stream analytics is similar to CEP, but it tends to focus more on aggregating values and comptuing statistical metrics over a stream of events rather than finding event sequences of patterns
+        - i. Common systems include Apache Flink, Storm, and Kafka streams, and Spark streaming
+    4. When it comes to time, stream processing uses local system clock of the processing machine to determine windowing, and is reasonbale if delay between event creation and event processing is negligibly short
+    5. But, if processing lag causes processing to happen way later than the time the event occurred, then the processed results would be inaccurate; events can also be out of order due to concurrency issues and race conditions
+- There is the same need for joins on streams as there is for batch processing
+    1. There are three different join on streams
+        - i. Stream-stream joins
+        - ii. Stream-table joins
+        - iii. Table-table joins
+    2. Stream-stream joins brings together two event streams within a specific time window, an this is implemented by managing a state in the stream processor using an index on the join key for both streams
+    3. Stream-table join is very similar to stream-stream join in the sense that the database is stored as a copy on the stream processor, and a table changelog stream is used to keep this copy up to date
+    4. Table-table joins takes two input streams as database changelogs, and a change on one table is joiend with the latest state of the other side, resulting in a stream of changes of the two joined tables' materialized view
+    5. All three types depend on requiring stream processor to maintain some state based on one join input, and query taht state on messages from the other join input
+- Unlike batch streaming where faults are restarted at the map or reduce level, and thus outputting only when task is finished, stream processing cannot hang for task completion because streams are infinite and processing is continuous
+    1. One solution is to microbatch streams into small blocks, and treat each like a small batch process in the context of fault-tolerance
+    2. Another approach is to periodically checkpoint points of state by writing them to durable storage for fallback in case of crash
+    3. The two solutions above adhere to the exactly-once semantics of batch processing and its fault tolerance mitigation principles; but, it does not revoke failed batch outputs sent to downstream systems
+    4. For state rebuilding after stream process failiure, many systems use snapshots by writing to disk, or by replicating state and processing on multiple nodes
+
+# Chapter 12: The Future of Data Systems
+- Derived data is a common issue in distributed architecture, because a single logical set of data can be represented in multiple systems
+    1. For instance, an application might have a SQL database, and a full-text search index that is derived from the database to provide efficient text search features; the architecture may have more data systems relying on derived data such as caches, data warehouses, or ML systems
+    2. If user input is funneled through a single system that decides on an ordering for al writes, it is easy to keep derived data consistent; for instance, CDC can be used on a database
+    3. Distributed transactions can be used to sync heterogeneous data systems together through 2PL, but it lacks the performance of the asynchronous streamed derived data; however, distributed transactions do provide gaurantees of linearizability
+        i. Linearizability versus total ordering
+    4. If total order broadcast is not pursued, it can be difficult to capture all casual dependencies, especially if there are multiple data systems involved
+- When maintaining derived data systems, asynchrony is what makes systems basd on event logs robust as it allows one fault in one part of the system to be contained locally; distributed transactions will abort if any participants fail
+- Batch and stream processing are useful in creating derived views of data, and provides a good mechanism for evolving system to support new features and changed requirements
+    1. Rather than migrating the original source of truth, a derived view can be created with modifications and then A/B tested with a small subset of users
+- Lambda architecture proposes incoming data should be recorded by appending immutable events to an always-growing dataset; from here, read-optimized views are derived
+    1. Runs batch and stream processing systems in parallel
+    2. Stream processor consumes events and produces an approximate derived view, and then the batch runs periodically on the same set of events and corrects the derived view
+        - i. Stream processing is more prone to fault-tolerance than batch systems
+- Unbundling data systems is the act of using log-based integration or stream processing to create derived views rather than using distributed transactions
+    1. When one dataset is derived from another, the derived data can be thought of having went through a transformation function with respect to the original data
+        - i. Deriving a secondary index is so common that there is an abstraction to do so with CREATE INDEX
+        - ii. However, most derived data require custom application logic and code to do so, which poses challenges
+        - iii. Derived systems require more gaurantee such as stable message ordering and complete fault tolerance, some of which are not common in messaging systems; however, these gaurantees are still cheaper than distributed transactions
+- Tracing a set of derived data systems requires breaking down the write path and the read path, that is, the order of services edited or queried to bring the entire system and any downstream derived data up to date
+    1. Caches, indexes, and materialized views all shift the boundary between the two paths by lengthening the write path (precomputation of results) and shortening the read path
+        - i. A nice way of thinking about write versus read performance
+- Traditional derived data systems extend the write path to a materialized view such as a cache, and allow the read to query and return a response; however, it is possible to represent reads as a stream as well and send both read and write events to a stream processor
+    1. This would be a stream-table join, where the table is in the form of an event log
+    2. Recording a log of read events would benefit casual dependency tracking, but could incur additional storage and I/O cost
+    3. It becomes more challenging when the database is partitioned, and would require a sequence of stream-table joins with multiple partitioned datasets (multiple event logs)
+- Exactly-once semantics states if a fault occurs, the output generated looks as if there were no faults associated, even if the processing was retried
+    1. Processing twice is a form of data corruption, such as charging a customer twice or incrementing a counter twice
+    2. Exactly-once semantics avoids nasty side effects of excessive processing
+    3. Idempotence (same effect, no matter how many rounds of execution) can be used to achieve exactly-once semantics by preventing retried operations from compounding changes in the system
+    4. ![Alt text](assets/idempotence.png)
+    5. Solving the duplicate transaction suppression problem to gaurantee exactly-once semantics is challenging, because it involves making changes from the database to the end-user client and all systems in between
+        - i. It requires an end-to-end solution
+- Uniqueness constraint is the gaurantee of identifiability with unique keys
+    1. Easy to address with single-leader replication, but falls apart if other forms of replication are used, which can cause concurrency issues and race conditions leading to data inconsistency
+    2. Partitioning would work if the unique value is the partition key
+- In distributed systems, timeliness and integrity are important
+    1. Timeliness is the measure of how long data is kept in an inconsistent state until updated to represent single source of truth
+    2. Integrity measures a systems tendency for corrupt data, data loss, or contradictory/false data
+    3. Timeliness is annoying but eventually solvable, whereas integrity is a permanent issue if not addressed
+    4. It is easy to use ACID transactiosn to provide both
+    5. However, unbundled, event-based systems with asynchronous event stream processing struggle to gaurantee timeliness; but, exactly-once semantics can preserve data integrity, and can be achieved through fault-tolerant message delivery and duplicate suppression via idempotence
+- Building systems is based on a set of assumptions
+    1. For instance, assume nodes can crash, networks can lag, and concurrency can occur; but assume fsync works, that CPU always computes the right result, and memory is not corrupt
+    2. However, this is binary assumption making is not entirely accurate, as it is more a question of probabilities where some things are more likely than others to happen
+    3. Hardware bugs are an issue, but software bugs also happen such as MySQL not enforcing a primary key uniqueness constraint correctly for some reason
+    4. As such, it is good for a system to self-audit its own data, and this is where event-based systems are good because the log is the audit whereas for database transactions, it is hard to pinpoint the cause of a set of changes or edits
+    5. This auditing should be done in end-to-end fashion to limit undetected corruption
+- Software is built for a purpose, and it is its usage that dictates how ethical it is, an issue that is not prioritized by many engineers and companies
+    1. ML models are a great example of ethics, because bias in data can influence predictions such as criminal offense
+        - i. For instance, because many African Americans in the training set offend, the model is biased towards this racial group, and falsely accuse someone of a crime simply bby race
+        - ii. If there is a systemic bias in the input to an algorithm, the algorithm will most likely learn and amplify that bias in the output
+    2. It is difficult to take ownership of ethical issues caused by software, because blame can be assigned in multiple areas such as data bias, human bias, company goals, or unforeseen system bugs
+    3. Privacy and data tracking is another large ethical issue, because there isn't a distinguished line between violation of privacy and harmless data collection in the digital world
+        - i. Replace the word data with surveillance, and analyze the tenor of a phrase
 
 
