@@ -184,7 +184,6 @@
             - c. Write skews occur when one transaction modifies an object based on the results of a query, but the results of the query are not consistent as another transaction modifies the query objects
             - d. Phantoms are a subset of write skew where the query result could be empty, and a write is performed due to this
         - ii. Race conditions can happen with simultaneous reads
-        - iii. TODO FINISH SUMMARY OF CONCEPTS and ENSURE CONSISTENCY WITH NOTES ABOVE
 
 # Chapter 8: The Trouble with Distributed Systems
 - Faults in a single computer are deterministic because there exists only a total failure, unlike in distributed systems where the partial failures are unpredictable

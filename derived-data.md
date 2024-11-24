@@ -52,6 +52,28 @@
 - MapReduce is simple to understand, but difficult to use because common functionality such as joins need to be implemented manually
 - MapReduce jobs are independent, and they require the full output file of one job as input for another; this requires materializing the files rather than using an in-memory buffer to stream data between processes in Unix
 - Some output files are only used by a single job, making output replication overkill for this intermediate state
+- To combat these issues, new execution engines for batch processing such as Spark and Flink were developed, and handle an entire workflow as one job rather than having to define multiple MapReduce jobs 
+    1. Dataflow engines that call a user-defined function to process one record on a single thread, and parallelize work over multiple nodes
+    2. Functions are called operators, and not restricted to map and reduce
+    3. Advantages include retaining intermediate state in-memory, limiting sorting only when absolutely necessary, and removing redundant map tasks because work done by a mapper in a dataflow engine can be incorporated into the preceding reduce operator
+    4. For fault-tolerance, it is not as easy anymore because intermediate state is not materialized on HDFS, and so the data is less durable
+        - i. Tolerate faults by recomputing lost data, which requires tracking how that data was computed through details such as partitions and operators
+        - ii. However, if operator is not deterministic (statistical algorithms, hash table ordering randomness), then recomputing is pointless, because the original data might not be recovered
+    5. In a sense, dataflow engines are like unix pipes, enabling easy bridging of operations together into a single job
+    6. The output of dataflow engines is usually still materialized datasets on HDFS; so are the inputs
+- Batch processing graph data requires implementing graph algorithms that are iterative in nature
+    1. Running graph processing with MapReduce is not possible, because it only performs a single pass over the data
+    2. An external scheduler runs a batch process to calculate one step of the algorithm, and runs another if some condition is not met, which is inefficient because of the continuous reading of entire input and outputting a completely new dataset everytime
+    3. Pregel processing model is a bulk synchronous parallel (BSP) model of computation, and allows one vertex to send a message to another vertex, which is akin to MPNN layers in GNNs as more iterations means higher k-hop message aggregations
+    4. Graph partitioning on a distributed processor is difficult, because it requires knowing what substructures to choose from in order to limit network overhead
+        -i. If a graph can fit in-memory on a single node, it is higly likely a graph processing algorithm will run faster than Pregel, which operates in a distributed setting
+- In the big data ecosystem, there are many tools, but they all fall into categories
+    1. Every execution engine, and high-level is built upon the Hadoop platform, which consists; this is the Hadoop ecosystem
+        -i. At a base level, Hadoop provides HDFS, YARN resource management, Hadoop Commons utilities, and MapReduce as the base execution engine
+    2. On top of Hadoop is the execution engine controlling how data is processed, which can be the likes of MapReduce, Flink, Tez, and Spark
+    3. On top of execution engines are query and workflow tools, which provide higher-level abstractions on how to transform data and setup complex workflows (multiple jobs); examples include Hive, Pig, Cascading, and Crunch
+        - i. Typically use relational-style building blocks as computation
+        - ii. By shifting the language to declarative queries, the underlying execution engine can optimize joins and other computations in their native way
 
 # Chapter 11: Stream Processing
 - A stream refers to data incrementally made available over time, such as in stdin and stdout of Unix

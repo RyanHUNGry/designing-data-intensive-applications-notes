@@ -55,7 +55,25 @@
     1. It is neither declarative or imperative but somewhere in between
     2. It is good for distributed batch processing of data, but MongoDB supports a limited extension if scale data processing is needed
     3. SQL can be written as a series of low-level MapReduce operations but not all database engines use this implementation
-- FINISH GRAPH DB SECTION
+- Many-to-many relationships can be relationally modeled, but if there are a myriad of these relationships, a graph model is a more natural fit
+    1. Graph logical data model consists of vertices and edges, and the graph can be both undirected and directed
+    2. Graph conceptual data model can represent different vertices and edges in the same graph as different entities and relationships, forming a heterogenous graph
+    3. Graph logical data model can be further broken down into the common property graph model and the less common triple-store model
+    4. The property graph gives each vertex a unique identifier, a set of outgoing and incoming edges, and a collection of key-value properties; it gives each edge a unique identifier with source vertex ID, target vertex ID, edge label to describe relationship, and a collection of key-value properties
+        - i. Though not actually relational, think about a property graph as two relational tables, one for vertices and one for edges
+        - ii. As such, joining an edge's starting and ending vertices with the vertices table can garner information about the relationship and entities in a connected pair
+    5. Cypher is a declarative query language for property graphs, created for Neo4j
+        - i. ![Alt text](/assets/graphschema.png)
+        - ii. ![Alt text](/assets/cyphercreate.png)
+        - iii. ![Alt text](/assets/cyphermatch.png)
+        - iv. Query optimizer performs automatic optimization because queries can be complex and rich, extending beyond traditional graph algorithms learned in DS&A
+        - v. Of course, SQL and relational databases can emulate Cypher because of the property graph logical data model being similar to that of relational databases, but the issue arises when an unknown amount of joins are needed, requiring tedious recursive common table expressions in SQL to implement
+    6. Triple-store model is very similar to property graph model but just uses different terms, describing itself in a (subject, predicate, object) manner such as "Jim likes bananas"
+        -i. The subject is always a vertex
+        -ii. The object can be another vertex, forcing the predicate to be an edge connecting the two
+        -iii. The object can be a value in a primitive datatype such as a string, number, boolean, or date, and thus the predicate and object of the triple are equivalent to the key and value of a property
+        - iv. It can be helpful to think of property graphs using the (subject, predicate, object) reasoning when developing the database
+    7. SPARQL is the query language for triple-stores
 
 # Chapter 3: Storage and Retrieval
 - The physical data model for databases concerns how data is stored on disk and how indexes are managed (on-disk or in-memory depending on implementation)
